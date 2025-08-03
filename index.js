@@ -1,52 +1,60 @@
-const { Client } = require("discord.js-selfbot-v13");
-const { joinVoiceChannel } = require("@discordjs/voice");
+const { Client, GatewayIntentBits } = require('discord.js');
+const { joinVoiceChannel } = require('@discordjs/voice');
 
-// Define your list of tokens in an array
-const tokens = [
-  "", // Replace with your actual tokens
-
-  // Add more tokens as needed
+// Add all your bot tokens here
+const BOT_CONFIGS = [
+  {
+    token: 'BOT_TOKEN_1',
+    guildId: 'GUILD_ID',
+    channelId: 'CHANNEL_ID'
+  },
+  {
+    token: 'BOT_TOKEN_2',
+    guildId: 'GUILD_ID',
+    channelId: 'CHANNEL_ID'
+  },
+  // Add more bots here...
 ];
 
-const GUILD_ID = "";
-const VOICE_CHANNEL_ID = "";
+BOT_CONFIGS.forEach(({ token, guildId, channelId }) => {
+  const client = new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildVoiceStates,
+    ]
+  });
 
-// A function to handle the login and joining of a single client
-async function loginAndJoin(token) {
-  const client = new Client();
-  
-  client.on("ready", async () => {
-    console.log(`Logged in as ${client.user.username}`);
-    
-    const guild = await client.guilds.fetch(GUILD_ID);
-    const channel = guild.channels.cache.get(VOICE_CHANNEL_ID);
+  client.once('ready', async () => {
+    console.log(`✅ Logged in as ${client.user.tag}`);
 
-    if (channel && channel.isVoice()) {
-      try {
-        const connection = joinVoiceChannel({
-          channelId: channel.id,
-          guildId: channel.guild.id,
-          adapterCreator: channel.guild.voiceAdapterCreator,
-          selfDeaf: false,
-          selfMute: false,
-        });
-        console.log(`${client.user.username} successfully joined the voice channel.`);
-      } catch (e) {
-        console.error(`Failed for ${client.user.username} to join VC:`, e);
-      }
-    } else {
-      console.log(`VC not found or not a voice channel for ${client.user.username}.`);
+    const guild = await client.guilds.fetch(guildId);
+    const channel = await guild.channels.fetch(channelId);
+
+    if (!channel || channel.type !== 2) {
+      console.error('❌ Invalid voice channel ID');
+      return;
     }
+
+    const connection = joinVoiceChannel({
+      channelId: channelId,
+      guildId: guildId,
+      adapterCreator: guild.voiceAdapterCreator,
+      selfMute: false,
+      selfDeaf: false,
+    });
+
+    try {
+      const me = await guild.members.fetch(client.user.id);
+      if (me.voice.serverDeaf) {
+        await me.voice.setDeaf(false);
+        console.log(`🔊 ${client.user.tag} undeafened`);
+      }
+    } catch (err) {
+      console.error(`❌ ${client.user.tag} failed to undeafen:`, err);
+    }
+
+    console.log(`🎤 ${client.user.tag} has joined the voice channel!`);
   });
 
-  client.login(token).catch(e => {
-    console.error(`Failed to log in with a token. Error: ${e.message}`);
-  });
-}
-
-// Loop through the tokens array and execute the function for each one
-tokens.forEach(token => {
-  loginAndJoin(token);
+  client.login(token);
 });
-
-console.log(`Attempting to log in with ${tokens.length} accounts...`);
